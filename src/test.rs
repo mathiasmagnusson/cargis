@@ -6,6 +6,7 @@ use std::{
 	path::Path,
 	process::{Command, Stdio},
 };
+use text_io::{read, try_read, try_scan};
 
 pub fn test_problem() -> Result<(), CargisError> {
 	// Build the project
