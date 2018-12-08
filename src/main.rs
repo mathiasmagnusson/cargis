@@ -1,4 +1,5 @@
 mod config;
+mod error;
 mod new_problem;
 mod run;
 
@@ -13,9 +14,15 @@ fn main() {
 		Err(()) => Config::help(),
 	};
 
-	match conf {
-		Config::New(link) => new_problem(link),
+	let result = match conf {
+		Config::New(name) => new_problem(name),
 		Config::Run => run(),
-		_ => {}
+		_ => { std::process::exit(1) }
+		// TODO: Add the rest
+	};
+
+	if let Err(e) = result {
+		eprintln!("{}", e);
+		std::process::exit(1);
 	}
 }

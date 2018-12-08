@@ -1,18 +1,24 @@
+use crate::error::CargisError;
 use easy_http_request::DefaultHttpRequest;
 use json::object;
 use std::{
 	fs::{self, File},
-	io::{self, Write},
 	path::Path,
 	process::Command,
 };
 use unzip::Unzipper;
 
-pub fn new_problem(link: &str) {
-	// Get the name of the problem
-	let name = link.split('/').next_back().unwrap(); // TODO: error handling
+pub fn new_problem(name: &str) -> Result<(), CargisError> {
+	// Check if the problem exists
+	let response =
+		DefaultHttpRequest::get_from_url_str(format!("https://open.kattis.com/problems/{}/file/statement/samples.zip", name))?
+			.send()?;
 
-	// Create a project with cargo new --bin {name}
+	if response.status_code != 200 {
+		return Err(CargisError::ProblemNotFoundError);
+	}
+
+	// Create a project with cargo
 	let output = match Command::new("cargo")
 		.arg("new")
 		.arg("--color")
@@ -22,56 +28,38 @@ pub fn new_problem(link: &str) {
 		.output()
 	{
 		Ok(output) => output,
-		Err(e) => {
-			eprintln!("Could not start cargo. Error received:\n{}\nMake sure that `cargo` is in your path", e);
-			std::process::exit(1);
-		}
+		Err(e) => return Err(CargisError::CargoStartingError(e)),
 	};
 
 	if !output.status.success() {
-		eprintln!("Cargo did not run successfully:");
-
-		io::stderr().write(&output.stderr).unwrap();
-
-		std::process::exit(output.status.code().unwrap_or(1));
+		return Err(CargisError::CargoRunningError(
+			output.stderr,
+			output.status.code(),
+		));
 	}
 
-	// Add file in the project dir to keep {link} available for submission
-	fs::create_dir(Path::new(name).join("cargis")).unwrap(); // TODO: error handling
+	// Add file in the project dir to keep the link available for submission
+	fs::create_dir(Path::new(name).join("cargis"))?;
 
 	fs::write(
 		Path::new(name).join("cargis").join("problem.txt"),
-		object! { "link" => link }.dump(),
-	)
-	.unwrap(); // TODO: error handling
+		object! { "link" => format!("https://open.kattis.com/problems/{}", name) }.dump(),
+	)?;
 
-	// Set up all tests available for the problem
-	let response =
-		DefaultHttpRequest::get_from_url_str(format!("{}/file/statement/samples.zip", link))
-			.unwrap()
-			.send()
-			.unwrap();
-
-	if response.status_code != 200 {
-		eprintln!("Couldnt reach {}", link);
-		std::process::exit(1);
-		// Don't create the cargo project if the problem wasn't found
-	}
-
+	// Put the test files in the project
 	fs::write(
 		Path::new(name).join("cargis").join("tests.zip"),
 		response.body,
-	)
-	.unwrap();
+	)?;
 
 	Unzipper::new(
-		File::open(Path::new(name).join("cargis").join("tests.zip")).unwrap(), // TODO: error handling
+		File::open(Path::new(name).join("cargis").join("tests.zip"))?,
 		Path::new(name).join("cargis").join("tests"),
 	)
-	.unzip()
-	.unwrap(); // TODO: error handling
+	.unzip()?;
 
-	fs::remove_file(Path::new(name).join("cargis").join("tests.zip")).unwrap();
+	fs::remove_file(Path::new(name).join("cargis").join("tests.zip"))?;
 
 	// TODO: add different boilerplate to main file
+	Ok(())
 }
