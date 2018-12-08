@@ -1,6 +1,5 @@
 pub enum Config<'a> {
 	New(&'a str),
-	Run,
 	Test,
 	Submit,
 }
@@ -15,7 +14,6 @@ impl Config<'_> {
 					Ok(Config::New(&args[2]))
 				}
 			}
-			"run" => Ok(Config::Run),
 			"test" | "judge" => Ok(Config::Test),
 			"submit" => Ok(Config::Submit),
 			_ => Err(()),
