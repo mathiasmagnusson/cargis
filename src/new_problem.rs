@@ -10,6 +10,7 @@ use unzip::Unzipper;
 
 pub fn new_problem(name: &str) -> Result<(), CargisError> {
 	// Check if the problem exists
+	// If the problem exists, but there are no samples cargis will think that the problem doesn't exist
 	let response =
 		DefaultHttpRequest::get_from_url_str(format!("https://open.kattis.com/problems/{}/file/statement/samples.zip", name))?
 			.send()?;
